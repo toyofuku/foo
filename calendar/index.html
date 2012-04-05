@@ -1,0 +1,220 @@
+<meta charset="UTF-8" />
+<meta name="viewport" content="initial-scale=1.0,user-scalable=yes" />
+
+<style>
+td {
+	width: 88px;
+	height: 88px;
+
+	background-color:white;
+	font-family:arial,sans,sans-serif;
+/*	font-size:100.0%;*/
+	font-size: 18pt;
+	font-weight:bold;
+	font-style:normal;
+	color:#000000;
+	text-decoration:none;
+	text-align:left;
+	vertical-align:top;
+	direction:auto-ltr;
+	white-space:normal;
+	overflow:hidden;
+	border-top:1px solid #CCC;
+	border-right:1px solid #CCC;
+	border-bottom:1px solid #CCC;
+	border-left:1px solid #CCC;
+}
+tr td:nth-child(1) { color: red; }
+tr td:nth-child(7) { color: blue; }
+caption {
+	font-size:36pt;
+}
+div.rokuyo {
+	font-size: 10pt;
+}
+div.calendar {
+	margin: 22px;
+}
+div#container {
+	width:100%;
+
+/*	height:600px;*/
+
+	display: -webkit-box;
+	display: box;
+/*
+	overflow:auto;*/
+}
+</style>
+<script src="http://code.jquery.com/jquery-1.7.1.min.js"></script>
+<script>
+var nyymin = 1999;
+var nyymax = 2030;
+var o2ntbl = [[611,2350]	,[468,3222]	,[316,7317]	,[559,3402]	,[416,3493]
+	,[288,2901]	,[520,1388]	,[384,5467]	,[637,605]	,[494,2349]	,[343,6443]
+	,[585,2709]	,[442,2890]	,[302,5962]	,[533,2901]	,[412,2741]	,[650,1210]
+	,[507,2651]	,[369,2647]	,[611,1323]	,[468,2709]	,[329,5781]	,[559,1706]
+	,[416,2773]	,[288,2741]	,[533,1206]	,[383,5294]	,[624,2647]	,[494,1319]
+	,[356,3366]	,[572,3475]	,[442,1450]];
+
+var nmdays = new Array(31,28,31,30,31,30,31,31,30,31,30,31);
+var otbl = new Array(14);
+
+// 新暦→旧暦変換
+// 戻り値は [nyy,nmm,ndd,uruu]   ・・・ uruu : "閏" or "";
+// Errorなら、 [0,0,0,""] を返す
+function get_N2O(nyy,nmm,ndd) {
+	var oyy,omm,odd,uruu,DofNyy;
+
+	DofNyy = NumberDays(nyy,nmm,ndd);
+	oyy = nyy;
+	TblExpand(oyy);
+	if (DofNyy < otbl[0][0]) {
+		oyy--;
+		DofNyy += 365 + LeapYear(oyy);
+		TblExpand(oyy);
+	}
+    for (var i = 12; i >= 0 ; i--) {
+		if (otbl[i][1] != 0) {
+			if (otbl[i][0] <= DofNyy) {
+				omm = otbl[i][1];
+				odd = DofNyy - otbl[i][0] + 1;
+				break;
+			}
+		}
+	}
+	if (omm < 0) {
+		uruu = '閏';
+		omm = -omm;
+	} else {
+		uruu = '';
+	}
+	return [oyy,omm,odd,uruu];
+}
+
+// グレゴリウス暦閏年判定。閏年なら 1, 平年なら 0
+function LeapYear(yy) {
+	var ans = 0;
+	if ((yy % 4) == 0) ans = 1;
+	if ((yy % 100) == 0) ans = 0;
+	if ((yy % 400) == 0) ans = 1;
+	return ans;
+}
+
+// 新暦年初からの通日 1/1 = 1
+function NumberDays(yy,mm,dd) {
+	nmdays[1] = 28 + LeapYear(yy);
+
+	var days = dd;
+	for (var m = 1; m < mm ; m++) {
+		days += nmdays[m - 1];
+	}
+	return days;
+}
+
+// 旧暦・新暦テーブル(otbl)作成
+function TblExpand(yy) {
+	var ommax,days,uruu,bit;
+
+	days = o2ntbl[yy - nyymin][0];
+	bit  = o2ntbl[yy - nyymin][1];
+	uruu = days % 13;	// 閏月抽出。無ければ 0
+	days = Math.floor(days / 13 + 0.001);	// 旧暦年初の新暦年初からの日数
+
+	otbl[0] = Array(days,1);	// 旧暦正月の通日と、月数
+	if (uruu == 0) {
+		bit *= 2;	// 閏無しなら 12ヶ月
+		ommax = 12;
+	} else {
+		ommax = 13;
+	}
+
+	for (var i = 1; i <= ommax; i++) {
+		otbl[i] = Array(otbl[i-1][0]+29, i+1);
+		if (bit >= 4096) {
+			otbl[i][0]++;	// 大の月
+		}
+		bit = (bit % 4096) * 2;
+	}
+	otbl[ommax][1] = 0;	// テーブルの終わり＆旧暦翌年年初
+
+	if (ommax > 12) {// 閏月のある年
+		for (var i = uruu + 1; i < 13 ; i++) {
+			otbl[i][1] = i;
+		}
+		otbl[uruu][1] = -uruu;	// 識別のため閏月はマイナスで記録
+	} else {
+		otbl[13] = Array(0,0);	// 使ってないけどエラー防止で。
+	}
+}
+
+var ans = get_N2O(2012,3,15);
+
+(function(){
+	jQuery.fn.calendar = function(config){
+		function _rokuyou(y, m, d){
+			var ans = get_N2O(y,m,d);
+			var index = (ans[1] + ans[2]) % 6;
+			return moon[ ans[1]-1 ] + ans[3]+ans[1]+'.'+ans[2]+' '+rokuyou[index];
+		}
+
+		var table = $("<table/>");
+		var wday=['日','月','火','水','木','金','土'];
+		var rokuyou = ['大安','赤口','先勝','友引','先負','仏滅'];
+		var moon=["睦月","如月","弥生","卯月","皐月","水無月","文月","葉月","長月","神無月","霜月","師走"];
+		var mday=[31,28,31,30,31,30,31,31,30,31,30,31];
+		var _thead = "<thead><tr><th>"+wday.join("</th><th>")+"</th></tr></thead>";
+		var date = new Date(config.y, config.m-1,1);
+		var w = date.getDay();
+		table.append(_thead);
+		table.append("<caption>"+config.m+"</caption>")
+		var d=1;
+		var row=[];
+		var mlast = mday[config.m-1];
+		for(var r=0; r < 6; r++){
+			for(var i=0; i < 7; i++){
+				if(r==0 && i < w){ row.push(''); }
+				else{
+					var text = d+"<div class=rokuyo>"+_rokuyou(config.y, config.m, d)+"</div>";
+					row.push(text);
+					d++;
+				}
+				if(d>mlast) break;
+			}
+			var _tr = "<tr><td>"+row.join("</td><td>")+"</td></tr>";
+			table.append(_tr);
+			row=[];
+			if(d>mlast) break;
+		}
+		
+		this.append(table);
+	};
+})(jQuery);
+
+$(document).ready(function(){
+	$("div#c201204").calendar({y:2012,m:4});
+	$("div#c201205").calendar({y:2012,m:5});
+	$("div#c201206").calendar({y:2012,m:6});
+	$("div#c201207").calendar({y:2012,m:7});
+	$("div#c201208").calendar({y:2012,m:8});
+	$("div#c201209").calendar({y:2012,m:9});
+	$("div#c201210").calendar({y:2012,m:10});
+	$("div#c201211").calendar({y:2012,m:11});
+	$("div#c201212").calendar({y:2012,m:12});
+});
+
+</script>
+
+<div id="container">
+<div class="calendar" id="c201203"></div>
+<div class="calendar" id="c201204"></div>
+<div class="calendar" id="c201205"></div>
+<div class="calendar" id="c201206"></div>
+<div class="calendar" id="c201207"></div>
+<div class="calendar" id="c201208"></div>
+<div class="calendar" id="c201209"></div>
+<div class="calendar" id="c201210"></div>
+<div class="calendar" id="c201211"></div>
+<div class="calendar" id="c201212"></div>
+</div>
+

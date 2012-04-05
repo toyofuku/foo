@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=330, user-scalable=no, maximum-scale=1.6667" />
+<style>
+.draggable {
+     width: 64px;
+     height: 64px;
+}
+.row {
+	width: 264px;
+	height: 64px;
+	background-color: #abf;
+	border: 1px solid #669;
+}
+.cell {
+	width:64px;
+	height: 64px;
+	background-color: #111;
+	float: left;
+	border:1px solid #fff;
+}
+
+.box {
+	float: left;
+}
+</style>
+
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+
+<script>
+$(document).ready(function(){
+	var audio = new Audio("tick.mp3"),
+        box = [], // ピースの左上座標を保持
+        cells = [], // ピースのdiv.idを保持
+	    ddm = {
+		_rows : 0,
+		_cols : 0,
+		_size : 0,
+		_row_end : 0,
+		_col_end : 0,
+		_drag : [],
+		_drop : [],
+		init: function(rows, cols){
+			this._rows = rows;
+			this._cols = cols;
+			this._size = rows * cols;
+			this._row_end = rows - 1;
+			this._col_end = cols - 1;
+			for(var i=0; i< this._size; i++){
+				this._drag.push(false);
+				this._drop.push(false);
+			}
+		},
+		dropOn: function(i){
+			if(i >= 0 && i < this._size){
+				this._drop[i] = true;
+			}
+		},
+		dropOff: function(i){
+			if(i >= 0 && i < this._size){
+				this._drop[i] = false;
+			}
+		},
+		isDroppable: function(i){
+			if (i >= 0 && i < this._size) {
+				return this._drop[i];
+			} else {
+				return false;
+			}
+		},
+        /* ドラッグ可能なピースの位置をすべてクリア */
+		dragOffAll: function(){
+			for(var i=0; i< this._size; i++){
+				this._drag[i] = false;
+			}
+		},
+        /* ドラッグ可能なピースをマーキング */
+		dragOn: function(){
+			var size = this._size,
+				cols = this._cols,
+				rows = this._rows,
+				col_end = this._col_end,
+				row_end = this._row_end,
+				col, row, i;
+			for(i=0; i < size; i++){
+				if(this._drop[i]){
+					col = i % cols;
+					row = Math.floor(i / cols);
+					// Left cells
+					if(col > 0){
+						for(var j=1; j<=col; j++){
+							this._drag[i-j] = true;
+						}
+					}
+					// Right cells
+					if(col < col_end){
+						for(var j=1; j <= col_end - col; j++){
+							this._drag[i+j] = true;
+						}
+					}
+					// Up cells
+					if(row > 0){
+						for(var j=1; j<=row; j++){
+							this._drag[i-cols*j] = true;
+						}
+					}
+					// Down Cells
+					if(row < row_end){
+						for(var j=1; j<=row_end - row; j++){
+							this._drag[i+cols*j] = true;
+						}
+					}
+				}
+			}
+		},
+		isDraggable: function(i){
+			if (i >= 0 && i < this._size) {
+				return this._drag[i];
+			} else {
+				return false;
+			}
+		}
+	};
+
+
+	$.fn.draggable = function() {
+		var offset = null,
+			startPos = null,
+			movingCell = null,
+			myId = null,
+			hop = 0,
+			myEventId = null;
+
+		var detectDirection = function(left, top){
+			var direct = "",
+				sign = 1,
+				skip = 1;
+			var dx = left - startPos.x;
+			var dy = top - startPos.y;
+			if(Math.abs(dx) > Math.abs(dy)){
+				if(dx > 0){
+					direct = "right";	
+				} else {
+					direct = "left";
+					sign = -1;
+				}
+			} else {
+				skip = ddm._cols;
+				if(dy > 0){
+					direct = "down";	
+				} else {
+					direct = "up";
+					sign = -1;
+				}
+			}
+			return {direct: direct, skip: skip, sign:sign};
+		};
+
+		var distance = function(direct) {
+			var cols = ddm._cols,
+				col_end = ddm._col_end,
+				rows = ddm._rows,
+				row_end = ddm._row_end,
+				_hop = 0,
+				i, j,
+				sign = direct.sign,
+				skip = direct.skip;
+
+			switch(direct.direct){
+			case "right":
+				j = col_end - movingCell % cols;
+				break;
+			case "left":
+				j = movingCell % cols;
+				break;
+			case "up":
+				j = Math.floor(movingCell / cols);
+				break;
+			case "down":
+				j = row_end - Math.floor(movingCell / cols);
+				break;
+			}
+			for(; j > 0; j--){
+				i = movingCell + sign * j * skip;
+				if(ddm.isDroppable(i)){
+					_hop = j;
+					break;
+				}
+			}
+			return _hop;
+		};
+        /* ピースを移動する */
+		var moveCells = function(direct, _left, _top) {
+			var cols = ddm._cols,
+				col_end = ddm._col_end,
+				rows = ddm._rows,
+				row_end = ddm._row_end,
+				dir = direct.direct,
+				sign = direct.sign,
+				skip = direct.skip,
+				target, dx, dy, delta,
+				ptr;
+
+			if(dir == "right" || dir == "left") {
+				delta = _left - offset.x - box[movingCell][0];
+				dx = Math.min(Math.abs(delta), 66);
+				if(delta < 0){ dx = -dx; }
+			} else{
+				delta = _top - offset.y - box[movingCell][1];
+				dy = Math.min(Math.abs(delta), 66);
+				if(delta < 0){ dy = -dy; }
+			}
+			for(var j=0; j < hop; j++){
+				ptr = movingCell+sign*skip*j;
+				targetId = cells[ptr];
+				if(dir == "right" || dir == "left") {
+					$("div#"+targetId).css({
+						top: box[movingCell][1],
+						left: box[ptr][0] + dx
+					});
+				} else {
+					$("div#"+targetId).css({
+						top: box[ptr][1] + dy,
+						left: box[movingCell][0]
+					});
+				}
+			}
+		};
+
+		var rotateCells = function(direct){
+			var targetId = "",
+				dir = direct.direct,
+				sign = direct.sign,
+				skip = direct.skip;
+            /* ピースの位置を移動 */
+			for(var j=0; j < hop; j++){
+				targetId = cells[movingCell+sign*skip*j];
+				if(dir == "right" || dir == "left") {
+					$("div#"+targetId).css({
+						top: box[movingCell][1],
+						left: box[movingCell+sign*skip*(j+1)][0]
+					});
+				} else{
+					$("div#"+targetId).css({
+						top: box[movingCell+sign*skip*(j+1)][1],
+						left: box[movingCell][0]
+					});
+				}
+			}
+            /* ピースのdiv.idを再配置 */
+			var dropTarget = cells[movingCell+sign*hop*skip];
+			var tmpTarget = "";
+			for(var j=hop-1; j >= 0; j--){
+				tmpTarget = cells[movingCell+sign*j*skip];
+				cells[movingCell+sign*(j+1)*skip] = tmpTarget;
+			}
+			cells[movingCell] = dropTarget;
+			ddm.dropOff(movingCell+sign*hop*skip);
+			ddm.dragOffAll();
+			ddm.dragOn();
+		};
+
+		var startMe = function(e) {
+			var orig = e.originalEvent;
+			orig.preventDefault();
+			if(orig.touches.length != 1) return false;
+			var pos = {left: orig.changedTouches[0].pageX, top: orig.changedTouches[0].pageY};
+			offset = null;
+			hop = 0;
+			for(var i=0; i < box.length; i++){
+				if(pos.left >= box[i][0] && pos.left <= box[i][0]+64 &&
+					pos.top >= box[i][1] && pos.top <= box[i][1]+64){
+					if(ddm.isDraggable(i)){
+						movingCell = i;
+						myId = cells[i];
+						offset = {
+							x: pos.left - box[i][0],
+							y: pos.top - box[i][1]
+						};
+						startPos = {
+							x: pos.left,
+							y: pos.top
+						};
+					}
+					myEventId = orig.changedTouches[0].identifier;
+					break;
+				}
+			}
+			audio.pause();
+			return false;
+		};
+
+		var moveMe = function(e) {
+			var cols, col_end,
+				rows, row_end,
+				i, orig, left, top, direct;
+
+			e.preventDefault();
+			if(offset==null) return false;
+			
+			orig = e.originalEvent;
+			if(orig.touches.length != 1 || myEventId != orig.changedTouches[0].identifier){
+				return false;	
+			}
+
+			ddm.dropOn(movingCell);
+			left = orig.changedTouches[0].pageX;
+			top = orig.changedTouches[0].pageY;
+			direct = detectDirection(left, top);
+
+			hop = distance(direct);
+			if(hop > 0){
+				moveCells(direct, left, top);
+			}
+			return false;
+		};
+		
+		var endMe = function(e) {
+			e.preventDefault();
+			if(offset==null) return false;
+			var orig = e.originalEvent,
+				direct,
+				left = orig.changedTouches[0].pageX,
+				top = orig.changedTouches[0].pageY;
+
+			if(orig.touches.length != 0 || myEventId != orig.changedTouches[0].identifier){
+				return false;
+			}
+			if(hop==0){
+				ddm.dropOff(movingCell);
+				for(var i=0; i<16;i++){
+					var opt = cells[i];
+					$("div#"+opt).css({
+						left:box[i][0],
+						top:box[i][1]
+					});
+				}
+				return false;
+			}
+
+			audio.curentTime = 0;
+			audio.play();
+
+			ddm.dropOn(movingCell);
+			direct = detectDirection(left, top);
+			rotateCells(direct);
+			return false;
+		};
+
+		this.bind("touchstart", startMe);
+		this.bind("touchmove", moveMe);
+		this.bind("touchend", endMe);
+	};
+
+	ddm.init(4,4);
+	ddm.dropOn(15);
+	ddm.dragOn();
+
+	$(".draggable").each(function(){
+		$(this).css("position", "absolute");
+		box.push([this.offsetLeft,this.offsetTop]);
+		cells.push(this.id);
+	});
+
+	$("div#opt44").removeClass("draggable");
+
+	$(".box").draggable();
+});
+
+</script>
+
+</head>
+
+<body>
+
+<div class="box">
+	<div class="row">
+		<div class="cell">
+			<div id="tmp11" class="drop">
+				<div id="opt1" class="draggable">
+					<img src="Images/1.png" />
+				</div>
+			</div>
+		</div>
+		<div class="cell">
+			<div id="tmp12" class="drop">
+				<div id="opt2" class="draggable">
+					<img src="Images/2.png" />
+				</div>
+			</div>
+		</div>
+		<div class="cell">
+			<div id="tmp13" class="drop">
+				<div id="opt3" class="draggable">
+					<img src="Images/3.png" />
+				</div>
+			</div>
+		</div>
+		<div class="cell">
+			<div id="tmp14" class="drop">
+				<div id="opt4" class="draggable">
+					<img src="Images/4.png" />
+				</div>
+			</div>
+		</div>
+	</div>
+	<div class="row">
+		<div class="cell">
+			<div id="tmp21" class="drop">
+				<div id="opt5" class="draggable">
+					<img src="Images/5.png" />
+				</div>
+			</div>
+		</div>
+		<div class="cell">
+			<div id="tmp22" class="drop">
+				<div id="opt6" class="draggable">
+					<img src="Images/6.png" />
+				</div>
+			</div>
+		</div>
+		<div class="cell">
+			<div id="tmp23" class="drop">
+				<div id="opt7" class="draggable">
+					<img src="Images/7.png" />
+				</div>
+			</div>
+		</div>
+		<div class="cell">
+			<div id="tmp24" class="drop">
+				<div id="opt8" class="draggable">
+					<img src="Images/8.png" />
+				</div>
+			</div>
+		</div>
+	</div>
+	<div class="row">
+		<div class="cell">
+			<div id="tmp31" class="drop">
+				<div id="opt9" class="draggable">
+					<img src="Images/9.png" />
+				</div>
+			</div>
+		</div>
+		<div class="cell">
+			<div id="tmp32" class="drop">
+				<div id="opt10" class="draggable">
+					<img src="Images/10.png" />
+				</div>
+			</div>
+		</div>
+		<div class="cell">
+			<div id="tmp33" class="drop">
+				<div id="opt11" class="draggable">
+					<img src="Images/11.png" />
+				</div>
+			</div>
+		</div>
+		<div class="cell">
+			<div id="tmp34" class="drop">
+				<div id="opt12" class="draggable">
+					<img src="Images/12.png" />
+				</div>
+			</div>
+		</div>
+	</div>
+	<div class="row">
+		<div class="cell">
+			<div id="tmp41" class="drop">
+				<div id="opt13" class="draggable">
+					<img src="Images/13.png" />
+				</div>
+			</div>
+		</div>
+		<div class="cell">
+			<div id="tmp42" class="drop">
+				<div id="opt14" class="draggable">
+					<img src="Images/14.png" />
+				</div>
+			</div>
+		</div>
+		<div class="cell">
+			<div id="tmp43" class="drop">
+				<div id="opt15" class="draggable">
+					<img src="Images/15.png" />
+				</div>
+			</div>
+		</div>
+		<div class="cell">
+			<div id="tmp44" class="drop">
+				<div id="opt16" class="draggable">
+				<!--
+				<img src="Images/block_tmpl.png" />
+				-->
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<div id="log"></div>
+
+</body>
+</html>
