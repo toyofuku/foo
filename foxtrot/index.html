@@ -1,0 +1,65 @@
+<meta charset="UTF-8" />
+<meta name="viewport" content="initial-scale=1.0,user-scalable=yes" />
+
+<style>
+body {
+	background-color: brown;
+	background-image: url("vintage_19.jpg");
+	background-repeat: repeat;
+}
+#test {
+	position:absolute;
+	top:88px;
+	left:22px;
+	width:724px;
+	height:724px;
+}
+</style>
+
+<div id="test">
+<img src="phenakistoscope.png" />
+</div>
+
+<script>
+(function(){
+
+var angle = 0
+,moving = false
+,timer
+,test = document.getElementById("test")
+,audio = new Audio("bgm.mp3");
+
+function round(){
+	moving = true;
+	var rotate = "rotate("+angle+"deg)";
+	test.style["-webkit-transform"] = rotate;
+	angle+=27.7;
+	if(angle>=360){angle=0;}
+}
+
+function startPlay(){
+	moving=true;
+	timer = setInterval(round,60);
+	audio.play();
+}
+function stopPlay(){
+	moving = false;
+	clearInterval(timer);
+	audio.pause();
+}
+
+audio.addEventListener("ended",stopPlay);
+audio.load();
+test.addEventListener("click",function(){
+	if(moving){
+		stopPlay();
+	}
+	else{
+		startPlay();
+	}
+});
+
+})();
+
+</script>
+
