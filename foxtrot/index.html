@@ -1,6 +1,5 @@
 <meta charset="UTF-8" />
-<meta name="viewport" content="initial-scale=1.0,user-scalable=yes" />
-
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
 <style>
 body {
 	background-color: brown;
@@ -38,7 +37,7 @@ function round(){
 }
 
 function startPlay(){
-	moving=true;
+	moving = true;
 	timer = setInterval(round,60);
 	audio.play();
 }
@@ -48,7 +47,10 @@ function stopPlay(){
 	audio.pause();
 }
 
-audio.addEventListener("ended",stopPlay);
+audio.addEventListener("ended",function(){
+	stopPlay();	
+	audio.currentTime = 0;
+});
 audio.load();
 test.addEventListener("click",function(){
 	if(moving){
