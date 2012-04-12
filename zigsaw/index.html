@@ -1,0 +1,134 @@
+<style>
+.frame {
+	position:absolute;
+	left:100px;
+	top:100px;
+	width:768px;
+	height:545px;
+	background-color:black;
+}
+
+.zs {position:absolute; display:none;}
+
+#zig {display:none;}
+
+</style>
+
+<body>
+
+<div class="frame"><div id="zig"><img src="base.png"></div></div>
+
+	<img id="zs11" class="zs" src="zs11.png">
+	<img id="zs12" class="zs" src="zs12.png">
+	<img id="zs13" class="zs" src="zs13.png">
+	<img id="zs14" class="zs" src="zs14.png">
+	<img id="zs15" class="zs" src="zs15.png">
+
+	<img id="zs21" class="zs" src="zs21.png">
+	<img id="zs22" class="zs" src="zs22.png">
+	<img id="zs23" class="zs" src="zs23.png">
+	<img id="zs24" class="zs" src="zs24.png">
+	<img id="zs25" class="zs" src="zs25.png">
+
+	<img id="zs31" class="zs" src="zs31.png">
+	<img id="zs32" class="zs" src="zs32.png">
+	<img id="zs33" class="zs" src="zs33.png">
+	<img id="zs34" class="zs" src="zs34.png">
+	<img id="zs35" class="zs" src="zs35.png">
+
+	<img id="zs41" class="zs" src="zs41.png">
+	<img id="zs42" class="zs" src="zs42.png">
+	<img id="zs43" class="zs" src="zs43.png">
+	<img id="zs44" class="zs" src="zs44.png">
+	<img id="zs45" class="zs" src="zs45.png">
+
+</body>
+
+<script src="http://code.jquery.com/jquery-1.7.1.min.js"></script>
+
+<script>
+var _zs = {
+	zs11:{left:100,top:100}
+	,zs12:{left:246,top:100}
+	,zs13:{left:352,top:100}
+	,zs14:{left:565,top:100}
+	,zs15:{left:663,top:100}
+	,zs21:{left:100,top:186}
+	,zs22:{left:205,top:226}
+	,zs23:{left:393,top:193}
+	,zs24:{left:515,top:240}
+	,zs25:{left:706,top:195}
+	,zs31:{left:100,top:370}
+	,zs32:{left:247,top:326}
+	,zs33:{left:353,top:366}
+	,zs34:{left:555,top:324}
+	,zs35:{left:662,top:370}
+	,zs41:{left:100,top:457}
+	,zs42:{left:206,top:498}
+	,zs43:{left:401,top:468}
+	,zs44:{left:506,top:509}
+	,zs45:{left:713,top:461}
+};
+
+$(document).ready(function(){
+	var unfixed = 20;
+	
+	$("img.zs").each(function(i){
+
+		var top = 650 + Math.random() * 250;
+		var left = 100 + Math.random() * 550;
+		var z = Math.floor(Math.random() * 20);
+		var offsetX=0, offsetY=0;
+
+		$(this)
+		.css("top",top)
+		.css("left",left)
+		.css("z-index",z)
+		.bind('touchstart',function(e){
+			var orig = e.originalEvent;
+			orig.preventDefault();
+			offsetX = orig.changedTouches[0].pageX - this.x;
+			offsetY = orig.changedTouches[0].pageY - this.y;
+			$(this).css("z-index", 21);
+		})
+		.bind('touchmove',function(e){
+			var orig = e.originalEvent;
+			orig.preventDefault();
+			var pageX = orig.changedTouches[0].pageX;
+			var pageY = orig.changedTouches[0].pageY;
+			pageX -= offsetX;
+			pageY -= offsetY;
+			$(this).css("left",pageX).css("top",pageY);
+		})
+		.bind('touchend',function(e){
+			var orig = e.originalEvent;
+			orig.preventDefault();
+			var pageX = orig.changedTouches[0].pageX;
+			var pageY = orig.changedTouches[0].pageY;
+			pageX -= offsetX;
+			pageY -= offsetY;
+			var _id = this.id;
+			var _target = _zs[_id];
+			if(Math.abs(pageX - _target.left) <= 30
+			&& Math.abs(pageY - _target.top) <= 30 )
+			{
+				$(this)
+				.css("left",_target.left)
+				.css("top",_target.top)
+				.css("z-index", 0)
+				.unbind("touchstart")
+				.unbind("touchmove")
+				.unbind("touchend");
+				if(--unfixed <= 0){
+					$(".zs").hide();
+					$("#zig").show("slow");
+				}
+			}else{
+				$(this).css("left",pageX).css("top",pageY);
+			}
+		})
+		.show();
+	});
+});
+
+</script>
